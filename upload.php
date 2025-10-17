@@ -1,62 +1,33 @@
 <?php
-// upload.php - เวอร์ชันย่อ
-$UPLOAD_DIR = __DIR__ . '/uploads';
-$META_FILE = __DIR__ . '/uploads.json';
-$MAX_SIZE = 200 * 1024 * 1024;
-$ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/avi', 'video/mov'];
+// ตั้งค่าที่อยู่โฟลเดอร์เก็บไฟล์
+$targetDir = "uploads/";
 
-// สร้างโฟลเดอร์หากไม่มี
-if (!is_dir($UPLOAD_DIR)) mkdir($UPLOAD_DIR, 0755, true);
-if (!file_exists($META_FILE)) file_put_contents($META_FILE, '[]');
+// ถ้ายังไม่มีโฟลเดอร์ uploads ให้สร้างขึ้นมา
+if (!file_exists($targetDir)) {
+    mkdir($targetDir, 0777, true);
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // ตรวจสอบข้อผิดพลาด
-    if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-        http_response_code(400);
-        die('Upload error: ' . $_FILES['file']['error']);
+// ตรวจสอบว่ามีไฟล์อัปโหลดมาจริงไหม
+if (isset($_FILES["file"])) {
+    $fileName = basename($_FILES["file"]["name"]);
+    $targetFilePath = $targetDir . $fileName;
+    $fileType = strtolower(pathinfo($targetFilePath, PATHINFO_EXTENSION));
+
+    // กำหนดนามสกุลไฟล์ที่อนุญาตให้อัปได้
+    $allowedTypes = array("jpg", "jpeg", "png", "gif", "mp4", "mov", "avi", "webm");
+
+    if (in_array($fileType, $allowedTypes)) {
+        if (move_uploaded_file($_FILES["file"]["tmp_name"], $targetFilePath)) {
+            echo "<h3 style='color:lime;'>อัปโหลดเสร็จเรียบร้อย!</h3>";
+            echo "<p>ลิงก์ไฟล์ของมึง:</p>";
+            echo "<a href='$targetFilePath' target='_blank'>$targetFilePath</a>";
+        } else {
+            echo "<h3 style='color:red;'>❌ มีปัญหาในการอัปโหลด</h3>";
+        }
+    } else {
+        echo "<h3 style='color:red;'>❌ ประเภทไฟล์นี้ไม่อนุญาต</h3>";
     }
-
-    // ตรวจสอบเงื่อนไข
-    if (!isset($_POST['confirm_18']) || $_POST['confirm_18'] !== '1') {
-        die('ต้องยืนยันอายุ 18+');
-    }
-
-    if (!isset($_POST['consent']) || $_POST['consent'] !== '1') {
-        die('ต้องยืนยันสิทธิ์เนื้อหา');
-    }
-
-    if ($_FILES['file']['size'] > $MAX_SIZE) {
-        die('ไฟล์ใหญ่เกิน');
-    }
-
-    // ตรวจสอบประเภทไฟล์
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mime = $finfo->file($_FILES['file']['tmp_name']);
-    if (!in_array($mime, $ALLOWED_TYPES)) {
-        die('ประเภทไฟล์ไม่อนุญาต: ' . $mime);
-    
-    // สร้างชื่อไฟล์ใหม่
-    $id = bin2hex(random_bytes(8));
-    $ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
-    $name = $id . ($ext ? '.' . $ext : '');
-    
-    // ย้ายไฟล์
-    if (move_uploaded_file($_FILES['file']['tmp_name'], $UPLOAD_DIR . '/' . $name);
-
-    // อัพเดทเมตาดาต้า
-    $meta = json_decode(file_get_contents($META_FILE), true);
-    array_unshift($meta, [
-        'id' => $id,
-        'orig' => $_FILES['file']['name'],
-        'name' => $name,
-        'mime' => $mime,
-        'size' => $_FILES['file']['size'],
-        'ts' => time()
-    ]);
-    file_put_contents($META_FILE, json_encode($meta, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
-
-    header('Location: index.html');
-    exit;
+} else {
+    echo "<h3 style='color:red;'>⚠️ ไม่มีไฟล์ถูกอัปโหลด</h3>";
 }
 ?>
-  

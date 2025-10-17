@@ -1,0 +1,74 @@
+name: Download Google Drive Folder and Deploy as Gallery
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install gdown
+        run: pip install gdown
+
+      - name: Download Google Drive Folder
+        run: |
+          mkdir -p public
+          gdown --folder https://drive.google.com/drive/folders/1F6f5SBm2auJqod1HssFiMyRwAlheA_8C -O ./public
+
+      - name: Generate index.html (Auto Gallery)
+        run: |
+          echo '<!DOCTYPE html>
+          <html lang="th">
+          <head>
+            <meta charset="UTF-8">
+            <title>แกลเลอรี่รูปและวิดีโอจาก Google Drive</title>
+            <style>
+              body {
+                background-color: #0d1117;
+                color: #fff;
+                font-family: sans-serif;
+                text-align: center;
+                padding: 40px;
+              }
+              h1 { margin-bottom: 30px; }
+              .media {
+                margin: 20px auto;
+                border-radius: 10px;
+                overflow: hidden;
+                max-width: 800px;
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+              }
+              img, video {
+                width: 100%;
+                height: auto;
+                display: block;
+              }
+              video { background-color: #000; }
+            </style>
+          </head>
+          <body>
+            <h1>รูปและคลิปจาก Google Drive</h1>' > ./public/index.html
+
+          for f in $(ls ./public); do
+            if [[ "$f" == "index.html" ]]; then continue; fi
+            if [[ $f == *.jpg || $f == *.jpeg || $f == *.png || $f == *.gif ]]; then
+              echo "<div class='media'><img src='$f' alt='$f'></div>" >> ./public/index.html
+            elif [[ $f == *.mp4 || $f == *.webm || $f == *.mov ]]; then
+              echo "<div class='media'><video controls><source src='$f' type='video/mp4'></video></div>" >> ./public/index.html
+            fi
+          done
+
+          echo '</body></html>' >> ./public/index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
